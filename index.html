@@ -1,31 +1,143 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Tolkens for Pi Network (Testnet)</title>
-<meta name="keywords" content="Pi Network,FUJI,SEO">
-<meta name="description" content="Tolkens for Pi Network(Testnet)">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="index.css">
+    <meta charset="UTF-8">
+    <title>Othello (VS CPU) - GitHub Version</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="outer">
-<div id="inner">
-<header><h1>Tolkens for Pi Network (Testnet)</h1>
-</header>
-<main>
-<h2>Tolken FUJI</h2>
-<p>FUJI coin</p>
-<h3>"FUJI" : wisteria flower</h3>
-<p>"FUJI" is the Japanese pronunciation of wisteria flower. It has nothing to do with Fuji-san.</p>
+    <h1>Othello VS CPU</h1>
+    <div id="status">Your Turn (Black)</div>
+    <div id="board"></div>
 
-<footer>
-<div id="pagetop">
-<a href="#outer"><svg viewBox="0 0 24 24" width="24px" height="24px" xmlns="http://www.w3.org/2000/svg">
-<path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z" fill="#999"/></svg></a>
-</div>
-c 2025 Tolkens for Pi Network (Testnet)
-</footer>
-</div></div>
+    <script>
+        // 0: Empty, 1: Black (Player), 2: White (CPU)
+        let board = Array(8).fill(null).map(() => Array(8).fill(0));
+        
+        // Initial setup
+        board[3][3] = 2; board[3][4] = 1;
+        board[4][3] = 1; board[4][4] = 2;
+
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        let isPlayerTurn = true;
+
+        function drawBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.onclick = () => handleCellClick(r, c);
+
+                    if (board[r][c] === 1) {
+                        const piece = document.createElement('div');
+                        piece.className = 'piece black';
+                        cell.appendChild(piece);
+                    } else if (board[r][c] === 2) {
+                        const piece = document.createElement('div');
+                        piece.className = 'piece white';
+                        cell.appendChild(piece);
+                    }
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellClick(r, c) {
+            if (!isPlayerTurn || board[r][c] !== 0) return;
+
+            const flipped = getFlips(r, c, 1);
+            if (flipped.length === 0) return;
+
+            board[r][c] = 1;
+            flipped.forEach(([fr, fc]) => board[fr][fc] = 1);
+            drawBoard();
+
+            isPlayerTurn = false;
+            statusEl.innerText = "CPU is thinking...";
+
+            setTimeout(cpuTurn, 800);
+        }
+
+        // ★元々Node.js（サーバー側）にあったロジックをフロントエンドに移植しました
+        function cpuTurn() {
+            const cpuMoves = getValidMoves(board, 2); // 2: White (CPU)
+            let chosenMove = null;
+
+            if (cpuMoves.length > 0) {
+                chosenMove = cpuMoves[Math.floor(Math.random() * cpuMoves.length)];
+            }
+
+            if (chosenMove) {
+                const { r, c } = chosenMove;
+                const flipped = getFlips(r, c, 2);
+                board[r][c] = 2;
+                flipped.forEach(([fr, fc]) => board[fr][fc] = 2);
+                drawBoard();
+                statusEl.innerText = "Your Turn (Black)";
+            } else {
+                statusEl.innerText = "CPU passed. Your Turn (Black)";
+            }
+            isPlayerTurn = true;
+        }
+
+        function getValidMoves(board, color) {
+            const moves = [];
+            const opponent = color === 1 ? 2 : 1;
+            const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (board[r][c] !== 0) continue;
+
+                    let canFlipTotal = false;
+                    for (let [dr, dc] of directions) {
+                        let nr = r + dr;
+                        let nc = c + dc;
+                        let hasOpponentBetween = false;
+
+                        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === opponent) {
+                            nr += dr;
+                            nc += dc;
+                            hasOpponentBetween = true;
+                        }
+
+                        if (hasOpponentBetween && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === color) {
+                            canFlipTotal = true;
+                            break;
+                        }
+                    }
+                    if (canFlipTotal) moves.push({ r, c });
+                }
+            }
+            return moves;
+        }
+
+        function getFlips(r, c, color) {
+            const opponent = color === 1 ? 2 : 1;
+            const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
+            let totalFlips = [];
+
+            for (let [dr, dc] of directions) {
+                let nr = r + dr;
+                let nc = c + dc;
+                let possibleFlips = [];
+
+                while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === opponent) {
+                    possibleFlips.push([nr, nc]);
+                    nr += dr;
+                    nc += dc;
+                }
+
+                if (possibleFlips.length > 0 && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === color) {
+                    totalFlips = totalFlips.concat(possibleFlips);
+                }
+            }
+            return totalFlips;
+        }
+
+        drawBoard();
+    </script>
 </body>
 </html>
