@@ -3,22 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <title>Pi App Test Payment</title>
-    <!-- Pi Networkの公式SDKライブラリを読み込み -->
-    <script src="https://minepi.com"></script>
+    <!-- 読み込みの確実性を高めるため、deferを付与して公式SDKを配置 -->
+    <script src="https://minepi.com" defer></script>
     <script>
-        // Pi SDKの初期化設定
-        Pi.init({ version: "2.0", sandbox: true });
-
         async function createTestPayment() {
-            try {
-                // 1. ユーザー（ご自身）のPi認証を実行
-                const scopes = ['payments'];
+            // Piオブジェクトが読み込まれているか最終チェック
+            if (typeof Pi === 'undefined') {
+                alert("Error: Please make sure you are opening this page INSIDE the official Pi Browser app.");
+                return;
+            }
+     
+       try {
+                // 実行直前に初期化
+                Pi.init({ version: "2.0", sandbox: true });
+ 
+               const scopes = ['payments'];
                 const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
                 console.log("Authenticated as:", auth.user.username);
-
-                // 2. テスト用のUser-to-App決済（例: 0.1 Test-Piの支払い）を要求
-                const paymentData = {
-                    amount: 0.1,
+                const paymentData =     {
+                amount: 0.1,
                     memo: "SoloHost App Checklist Test Payment",
                     metadata: { appId: "com.tysseo7.pimonitor" }
                 };
@@ -26,17 +29,15 @@
                 const callbacks = {
                     onReadyForServerApproval: (paymentId) => {
                         console.log("Ready for Server Approval. PaymentID:", paymentId);
-                        // 本来はサーバー側の承認が必要ですが、チェックリストの検知用にはこれで十分です
                     },
                     onReadyForServerCompletion: (paymentId, txid) => {
                         console.log("Payment Complete. TXID:", txid);
                         alert("Test Payment Successful!");
                     },
-                    onCancel: (paymentId) => { console.log("Payment Cancelled"); },
-                    onError: (error, payment) => { console.error("Payment Error", error); }
+                    onCancel: () => { console.log("Payment Cancelled"); },
+                    onError: (error) => { console.error("Payment Error", error); }
                 };
 
-                // 決済画面を立ち上げる
                 await Pi.createPayment(paymentData, callbacks);
 
             } catch (error) {
@@ -47,8 +48,8 @@
         function onIncompletePaymentFound(payment) {
             console.log("Incomplete payment found", payment);
         }
-    </script>
-    <style>
+    </scri    <style>pt>
+
         body { font-family: sans-serif; text-align: center; margin-top: 100px; background-color: #f4f6f9; }
         .btn { background-color: #5a2d82; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .btn:hover { background-color: #441f63; }
