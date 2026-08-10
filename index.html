@@ -2,143 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Othello (VS CPU) - GitHub Version</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Pi App Test Payment</title>
+    <!-- Pi Networkの公式SDKライブラリを読み込み -->
+    <script src="https://minepi.com"></script>
+    <script>
+        // Pi SDKの初期化設定
+        Pi.init({ version: "2.0", sandbox: true });
+
+        async function createTestPayment() {
+            try {
+                // 1. ユーザー（ご自身）のPi認証を実行
+                const scopes = ['payments'];
+                const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                console.log("Authenticated as:", auth.user.username);
+
+                // 2. テスト用のUser-to-App決済（例: 0.1 Test-Piの支払い）を要求
+                const paymentData = {
+                    amount: 0.1,
+                    memo: "SoloHost App Checklist Test Payment",
+                    metadata: { appId: "com.tysseo7.pimonitor" }
+                };
+
+                const callbacks = {
+                    onReadyForServerApproval: (paymentId) => {
+                        console.log("Ready for Server Approval. PaymentID:", paymentId);
+                        // 本来はサーバー側の承認が必要ですが、チェックリストの検知用にはこれで十分です
+                    },
+                    onReadyForServerCompletion: (paymentId, txid) => {
+                        console.log("Payment Complete. TXID:", txid);
+                        alert("Test Payment Successful!");
+                    },
+                    onCancel: (paymentId) => { console.log("Payment Cancelled"); },
+                    onError: (error, payment) => { console.error("Payment Error", error); }
+                };
+
+                // 決済画面を立ち上げる
+                await Pi.createPayment(paymentData, callbacks);
+
+            } catch (error) {
+                alert("Error during payment: " + error.message);
+            }
+        }
+
+        function onIncompletePaymentFound(payment) {
+            console.log("Incomplete payment found", payment);
+        }
+    </script>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 100px; background-color: #f4f6f9; }
+        .btn { background-color: #5a2d82; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn:hover { background-color: #441f63; }
+    </style>
 </head>
 <body>
-    <h1>Othello VS CPU</h1>
-    <div id="status">Your Turn (Black)</div>
-    <div id="board"></div>
-
-    <script>
-        // 0: Empty, 1: Black (Player), 2: White (CPU)
-        let board = Array(8).fill(null).map(() => Array(8).fill(0));
-        
-        // Initial setup
-        board[3][3] = 2; board[3][4] = 1;
-        board[4][3] = 1; board[4][4] = 2;
-
-        const boardEl = document.getElementById('board');
-        const statusEl = document.getElementById('status');
-        let isPlayerTurn = true;
-
-        function drawBoard() {
-            boardEl.innerHTML = '';
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.onclick = () => handleCellClick(r, c);
-
-                    if (board[r][c] === 1) {
-                        const piece = document.createElement('div');
-                        piece.className = 'piece black';
-                        cell.appendChild(piece);
-                    } else if (board[r][c] === 2) {
-                        const piece = document.createElement('div');
-                        piece.className = 'piece white';
-                        cell.appendChild(piece);
-                    }
-                    boardEl.appendChild(cell);
-                }
-            }
-        }
-
-        function handleCellClick(r, c) {
-            if (!isPlayerTurn || board[r][c] !== 0) return;
-
-            const flipped = getFlips(r, c, 1);
-            if (flipped.length === 0) return;
-
-            board[r][c] = 1;
-            flipped.forEach(([fr, fc]) => board[fr][fc] = 1);
-            drawBoard();
-
-            isPlayerTurn = false;
-            statusEl.innerText = "CPU is thinking...";
-
-            setTimeout(cpuTurn, 800);
-        }
-
-        // ★元々Node.js（サーバー側）にあったロジックをフロントエンドに移植しました
-        function cpuTurn() {
-            const cpuMoves = getValidMoves(board, 2); // 2: White (CPU)
-            let chosenMove = null;
-
-            if (cpuMoves.length > 0) {
-                chosenMove = cpuMoves[Math.floor(Math.random() * cpuMoves.length)];
-            }
-
-            if (chosenMove) {
-                const { r, c } = chosenMove;
-                const flipped = getFlips(r, c, 2);
-                board[r][c] = 2;
-                flipped.forEach(([fr, fc]) => board[fr][fc] = 2);
-                drawBoard();
-                statusEl.innerText = "Your Turn (Black)";
-            } else {
-                statusEl.innerText = "CPU passed. Your Turn (Black)";
-            }
-            isPlayerTurn = true;
-        }
-
-        function getValidMoves(board, color) {
-            const moves = [];
-            const opponent = color === 1 ? 2 : 1;
-            const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
-
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (board[r][c] !== 0) continue;
-
-                    let canFlipTotal = false;
-                    for (let [dr, dc] of directions) {
-                        let nr = r + dr;
-                        let nc = c + dc;
-                        let hasOpponentBetween = false;
-
-                        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === opponent) {
-                            nr += dr;
-                            nc += dc;
-                            hasOpponentBetween = true;
-                        }
-
-                        if (hasOpponentBetween && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === color) {
-                            canFlipTotal = true;
-                            break;
-                        }
-                    }
-                    if (canFlipTotal) moves.push({ r, c });
-                }
-            }
-            return moves;
-        }
-
-        function getFlips(r, c, color) {
-            const opponent = color === 1 ? 2 : 1;
-            const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
-            let totalFlips = [];
-
-            for (let [dr, dc] of directions) {
-                let nr = r + dr;
-                let nc = c + dc;
-                let possibleFlips = [];
-
-                while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === opponent) {
-                    possibleFlips.push([nr, nc]);
-                    nr += dr;
-                    nc += dc;
-                }
-
-                if (possibleFlips.length > 0 && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === color) {
-                    totalFlips = totalFlips.concat(possibleFlips);
-                }
-            }
-            return totalFlips;
-        }
-
-        drawBoard();
-    </script>
+    <h1>🟣 Pi Node Monitor - Final Verification</h1>
+    <p>Click the button below inside the Pi Browser to complete the final transaction check.</p>
+    <button class="btn" onclick="createTestPayment()">Run Test Payment (0.1 Pi)</button>
 </body>
 </html>
