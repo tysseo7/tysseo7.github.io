@@ -4,45 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pi App Final Verification</title>
-    <!-- 公式のPi SDKを同期読み込みで確実に配置 -->
+    <!-- SDKを確実に最優先で読み込ませる記述 -->
     <script src="https://minepi.com"></script>
 </head>
 <body style="font-family: sans-serif; text-align: center; margin-top: 100px; background-color: #f4f6f9;">
 
-    <h1 style="color: #5a2d82;">🟣🟣 Pi Node Monitor - Final Verification</h1>
+    <h1 style="color: #5a2d82;">🟣 Pi Node Monitor - Final Verification</h1>
     <p>Click the button below inside the Pi Browser to complete the final transaction check.</p>
     
-    <!-- 決済テストを実行するボタン -->
     <button id="pay-button" style="background-color: #5a2d82; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         Run Test Payment (0.1 Pi)
     </button>
 
     <script>
-        // ボタンのクリックイベントを安全に登録
+        // Piブラウザの読み込み遅延対策：Piオブジェクトが利用可能になるまで最大10秒間待機する関数
+        function waitForPi(callback, maxAttempts = 20, interval = 500) {
+            let attempts = 0;
+            const check = setInterval(() => {
+                attempts++;
+                if (typeof Pi !== 'undefined') {
+                    clearInterval(check);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(check);
+                    alert("Error: Pi SDK could not be initialized by the Pi Browser. Please reload the page.");
+                }
+            }, interval);
+        }
+
+        // ページが読み込まれたら自動で初期化待機を開始
+        waitForPi(() => {
+            try {
+                // 安全に初期化を実行
+                Pi.init({ version: "2.0", sandbox: true });
+                console.log("Pi SDK successfully initialized.");
+            } catch (e) {
+                console.error("Initialization error:", e);
+            }
+        });
+
+        // ボタンクリック時の決済処理
         document.getElementById('pay-button').addEventListener('click', async function() {
             if (typeof Pi === 'undefined') {
-                alert("Error: Pi SDK is not loaded. Please make sure you are opening this inside the official Pi Browser app.");
+                alert("Pi is still loading. Please wait a moment and try clicking again.");
                 return;
             }
 
             try {
-                // Pi SDKをテスト環境（sandbox）で初期化
-                Pi.init({ version: "2.0", sandbox: true });
-
-                // ユーザーの決済権限を認証
+                // ユーザー認証
                 const scopes = ['payments'];
                 const auth = await Pi.authenticate(scopes, function(incompletePayment) {
-                    console.log("Incomplete payment:", incompletePayment);
+                    console.log("Incomplete payment found:", incompletePayment);
                 });
                 
-                // テスト用送金データの作成（0.1 Test-Pi）
+                // 0.1 Test-Piの決済データ
                 const paymentData = {
                     amount: 0.1,
                     memo: "SoloHost App Checklist Test Payment",
                     metadata: { appId: "com.tysseo7.pimonitor" }
                 };
 
-                // 決済処理のコールバック設定
                 const callbacks = {
                     onReadyForServerApproval: function(paymentId) {
                         console.log("Payment created:", paymentId);
@@ -51,18 +72,18 @@
                         alert("Test Payment Successful! TXID: " + txid);
                     },
                     onCancel: function(paymentId) {
-                        console.log("Payment cancelled:", paymentId);
+                        console.log("Payment cancelled");
                     },
-                    onError: function(error, payment) {
+                    onError: function(error) {
                         alert("Payment error: " + error.message);
                     }
                 };
 
-                // 決済画面を起動
+                // 決済ポップアップを起動
                 await Pi.createPayment(paymentData, callbacks);
 
             } catch (error) {
-                alert("Error: " + error.message);
+                alert("Error during payment: " + error.message);
             }
         });
     </script>
