@@ -2,62 +2,69 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pi App Test Payment</title>
-    <!-- 読み込みの確実性を高めるため、deferを付与して公式SDKを配置 -->
-    <script src="https://minepi.com" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi App Final Verification</title>
+    <!-- 公式のPi SDKを同期読み込みで確実に配置 -->
+    <script src="https://minepi.com"></script>
+</head>
+<body style="font-family: sans-serif; text-align: center; margin-top: 100px; background-color: #f4f6f9;">
+
+    <h1 style="color: #5a2d82;">🟣🟣 Pi Node Monitor - Final Verification</h1>
+    <p>Click the button below inside the Pi Browser to complete the final transaction check.</p>
+    
+    <!-- 決済テストを実行するボタン -->
+    <button id="pay-button" style="background-color: #5a2d82; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        Run Test Payment (0.1 Pi)
+    </button>
+
     <script>
-        async function createTestPayment() {
-            // Piオブジェクトが読み込まれているか最終チェック
+        // ボタンのクリックイベントを安全に登録
+        document.getElementById('pay-button').addEventListener('click', async function() {
             if (typeof Pi === 'undefined') {
-                alert("Error: Please make sure you are opening this page INSIDE the official Pi Browser app.");
+                alert("Error: Pi SDK is not loaded. Please make sure you are opening this inside the official Pi Browser app.");
                 return;
             }
-     
-       try {
-                // 実行直前に初期化
+
+            try {
+                // Pi SDKをテスト環境（sandbox）で初期化
                 Pi.init({ version: "2.0", sandbox: true });
- 
-               const scopes = ['payments'];
-                const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
-                console.log("Authenticated as:", auth.user.username);
-                const paymentData =     {
-                amount: 0.1,
+
+                // ユーザーの決済権限を認証
+                const scopes = ['payments'];
+                const auth = await Pi.authenticate(scopes, function(incompletePayment) {
+                    console.log("Incomplete payment:", incompletePayment);
+                });
+                
+                // テスト用送金データの作成（0.1 Test-Pi）
+                const paymentData = {
+                    amount: 0.1,
                     memo: "SoloHost App Checklist Test Payment",
                     metadata: { appId: "com.tysseo7.pimonitor" }
                 };
 
+                // 決済処理のコールバック設定
                 const callbacks = {
-                    onReadyForServerApproval: (paymentId) => {
-                        console.log("Ready for Server Approval. PaymentID:", paymentId);
+                    onReadyForServerApproval: function(paymentId) {
+                        console.log("Payment created:", paymentId);
                     },
-                    onReadyForServerCompletion: (paymentId, txid) => {
-                        console.log("Payment Complete. TXID:", txid);
-                        alert("Test Payment Successful!");
+                    onReadyForServerCompletion: function(paymentId, txid) {
+                        alert("Test Payment Successful! TXID: " + txid);
                     },
-                    onCancel: () => { console.log("Payment Cancelled"); },
-                    onError: (error) => { console.error("Payment Error", error); }
+                    onCancel: function(paymentId) {
+                        console.log("Payment cancelled:", paymentId);
+                    },
+                    onError: function(error, payment) {
+                        alert("Payment error: " + error.message);
+                    }
                 };
 
+                // 決済画面を起動
                 await Pi.createPayment(paymentData, callbacks);
 
             } catch (error) {
-                alert("Error during payment: " + error.message);
+                alert("Error: " + error.message);
             }
-        }
-
-        function onIncompletePaymentFound(payment) {
-            console.log("Incomplete payment found", payment);
-        }
-    </scri    <style>pt>
-
-        body { font-family: sans-serif; text-align: center; margin-top: 100px; background-color: #f4f6f9; }
-        .btn { background-color: #5a2d82; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn:hover { background-color: #441f63; }
-    </style>
-</head>
-<body>
-    <h1>🟣 Pi Node Monitor - Final Verification</h1>
-    <p>Click the button below inside the Pi Browser to complete the final transaction check.</p>
-    <button class="btn" onclick="createTestPayment()">Run Test Payment (0.1 Pi)</button>
+        });
+    </script>
 </body>
 </html>
