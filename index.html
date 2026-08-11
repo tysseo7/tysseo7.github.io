@@ -2,47 +2,73 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pi App Final Verification</title>
-    <!-- 🟢 Pi SDK の読み込み -->
-    <script src="https://minepi.com"></script>
 </head>
 <body style="font-family: sans-serif; text-align: center; margin-top: 100px; background-color: #f4f6f9;">
+
     <h1 style="color: #5a2d82;">🟣 Pi Node Monitor - Final Verification</h1>
     <p>Click the button below to complete the final transaction check.</p>
+    
     <button id="pay-button" style="background-color: #5a2d82; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; font-weight: bold;">
         Run Test Payment (0.1 Pi)
     </button>
+
     <script>
-        // 1. SDKの初期化（本番URLから直接開くため、sandbox: true は不要、または外します）
-        try { 
-            Pi.init({ version: "2.0" }); 
-            console.log("Pi SDK Initialized");
-        } catch(e){ console.error("Initialization error:", e); }
+        // 1. スクリプト要素を動的に生成し、読み込み完了を確実に検知する
+        const script = document.createElement('script');
+        script.src = "https://minepi.com"; // または https://pinet.com
+        script.async = true;
 
-        // 2. ボタンクリック時の処理
-        document.getElementById('pay-button').addEventListener('click', function() {
-            if (typeof Pi === 'undefined') { alert("Error: Pi SDK is not defined."); return; }
+        // SDKの読み込みが「完全に完了」した後に実行される処理
+        script.onload = function() {
+            console.log("Pi SDK loaded successfully.");
+            
+            try {
+                // SDKの初期化
+                Pi.init({ version: "2.0" });
+                console.log("Pi SDK Initialized.");
 
-            // 認証後に決済モーダルを起動
-            Pi.authenticate(['payments'], function(incompletePayment) {
-                console.log("Incomplete payment found:", incompletePayment);
-            }).then(function(auth) {
-                return Pi.createPayment({
-                    amount: 0.1,
-                    memo: "SoloHost App Checklist Test Payment",
-                    metadata: { appId: "com.tysseo7.pimonitor" }
-                }, {
-                    onReadyForServerApproval: function(paymentId) { 
-                        alert("決済が作成されました！ID: " + paymentId); 
-                    },
-                    onReadyForServerCompletion: function(paymentId, txid) { 
-                        alert("決済成功！\\nTXID: " + txid); 
-                    },
-                    onCancel: function(paymentId) { alert("キャンセルされました。"); },
-                    onError: function(error, payment) { alert("エラー:\\n" + error.message); }
+                // 初期化が成功した後に、初めてボタンのクリックイベントを設定する
+                document.getElementById('pay-button').addEventListener('click', function() {
+                    
+                    // ユーザー認証を開始
+                    Pi.authenticate(['payments'], function(incompletePayment) {
+                        console.log("Incomplete payment:", incompletePayment);
+                    }).then(function(auth) {
+                        // 認証成功後に決済を起動
+                        return Pi.createPayment({
+                            amount: 0.1,
+                            memo: "SoloHost App Checklist Test Payment",
+                            metadata: { appId: "com.tysseo7.pimonitor" }
+                        }, {
+                            onReadyForServerApproval: function(paymentId) { 
+                                alert("決済が作成されました！ID: " + paymentId); 
+                            },
+                            onReadyForServerCompletion: function(paymentId, txid) { 
+                                alert("決済成功！\\nTXID: " + txid); 
+                            },
+                            onCancel: function(paymentId) { alert("キャンセルされました。"); },
+                            onError: function(error, payment) { alert("エラー:\\n" + error.message); }
+                        });
+                    }).catch(function(error) {
+                        alert("認証または決済エラー:\\n" + error.message);
+                    });
+
                 });
-            }).catch(function(error) { alert("エラー:\\n" + error.message); });
-        });
+
+            } catch (e) {
+                alert("初期化エラー: " + e.message);
+            }
+        };
+
+        // 読み込みに失敗した場合のセーフティガード
+        script.onerror = function() {
+            alert("エラー: Pi SDKのダウンロードに失敗しました。ネットワーク環境やURLを確認してください。");
+        };
+
+        // 生成したスクリプトをHTMLに追加して読み込みを開始
+        document.head.appendChild(script);
     </script>
 </body>
 </html>
